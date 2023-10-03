@@ -25,6 +25,8 @@ const char* RK_OP_Str[RK_TOT_OP] = {
     "RK_WRITE_STRING",
     "RK_LOAD_I64",
     "RK_STORE_I64",
+    "RK_LOAD_CHAR",
+    "RK_STORE_CHAR",
     "RK_ADD_I64",
     "RK_SUB_I64",
     "RK_DIV_I64",
@@ -121,6 +123,14 @@ const char* rk_op_Str(RK_OP op) {
             return RK_OP_Str[RK_STORE_I64_I];
         }
         break;
+        case RK_LOAD_CHAR: {
+            return RK_OP_Str[RK_LOAD_CHAR_I];
+        }
+        break;
+        case RK_STORE_CHAR: {
+            return RK_OP_Str[RK_STORE_CHAR_I];
+        }
+        break;
         case RK_ADD_I64: {
             return RK_OP_Str[RK_ADD_I64_I];
         }
@@ -185,6 +195,89 @@ const char* rk_type_Str(Word_Type t) {
     }
 }
 
+void rk_print_Word_2file(FILE* fp, Word w, int colored, Roko* rk) {
+    char* color_esc;
+    color_esc = (colored == 1 ? "\033[1;31m" : "");
+    if (!fp) {
+        fprintf(stderr,"%s\n[ERROR] at %s(): fp was NULL.\n", color_esc, __func__);
+        return;
+    }
+    if (!rk) {
+        fprintf(stderr,"%s\n[ERROR] at %s(): rk was NULL.\n", color_esc, __func__);
+        return;
+    }
+    if (w.type == RK_TYPE_INT64 && w.data.as_i64 != RK_INVALID_OP) {
+        color_esc = (colored == 1 ? "\033[1;36m" : "");
+        fprintf(fp,"%s\t{%019" PRId64 "}", color_esc, w.data.as_i64);
+
+        color_esc = (colored == 1 ? "\033[1;35m" : "");
+        //TODO handle f64 words in memory
+        fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(w)));
+
+        color_esc = (colored == 1 ? "\033[1;37m" : "");
+        fprintf(fp,"%s\t\t<%-16.16" PRId64 ">", color_esc, rk_operand_from_Word_i64(w).data.as_i64);
+
+        color_esc = (colored == 1 ? "\033[1;34m" : "");
+        fprintf(fp,"%s\t{0x%016" PRIx64 "}", color_esc, w.data.as_i64);
+    } else if (w.type == RK_TYPE_FLOAT64) {
+        color_esc = (colored == 1 ? "\033[1;35m" : "");
+        fprintf(fp,"%s\t\t\t\t{%026.6f}", color_esc, (double) w.data.as_i64);
+    } else if (w.type == RK_TYPE_CHAR) {
+        color_esc = (colored == 1 ? "\033[1;36m" : "");
+        fprintf(fp,"%s\t{%019" PRId64 "}", color_esc, w.data.as_i64);
+
+        color_esc = (colored == 1 ? "\033[1;35m" : "");
+        fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(w)));
+        int64_t value = rk_operand_from_Word_i64(w).data.as_i64;
+        if (value >=32 && value <= 255) {
+            color_esc = (colored == 1 ? "\033[1;35m" : "");
+            fprintf(fp,"%s\t\t{%c}", color_esc, (char) value);
+        } else if (value == 0) {
+            color_esc = (colored == 1 ? "\033[1;36m" : "");
+            fprintf(fp,"%s\t\t{\\0}", color_esc);
+        } else {
+            color_esc = (colored == 1 ? "\033[1;37m" : "");
+            fprintf(fp,"%s\t\t{\\¿}", color_esc);
+        }
+        color_esc = (colored == 1 ? "\033[1;33m" : "");
+        fprintf(fp,"%s\t\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_i64(w).data.as_i64);
+    } else if (w.type == RK_TYPE_STRING) {
+        color_esc = (colored == 1 ? "\033[1;36m" : "");
+        fprintf(fp,"%s\t{%019" PRId64 "}", color_esc, w.data.as_i64);
+        color_esc = (colored == 1 ? "\033[1;35m" : "");
+        fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(w)));
+        char str_buf[RK_MEM_SIZE-5] = {0};
+        int64_t str_offset = rk_operand_from_Word_i64(w).data.as_i64;
+        for (int str_i = 0; str_i < RK_MEM_SIZE-5; str_i++) {
+            str_buf[str_i] = rk->memory[str_offset].data.as_i64;
+            if (str_buf[str_i] == 0 ) {
+                break;
+            }
+            str_offset++;
+        }
+        //color_esc = (colored == 1 ? "\033[1;35m" : "");
+        //fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk->memory[i])));
+        color_esc = (colored == 1 ? "\033[1;33m" : "");
+        fprintf(fp,"%s\t\t{%s}", color_esc, str_buf);
+        color_esc = (colored == 1 ? "\033[1;36m" : "");
+        fprintf(fp,"%s\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_i64(w).data.as_i64);
+        //color_esc = (colored == 1 ? "\033[1;36m" : "");
+        //fprintf(fp,"%s\t\t\t[%s]", color_esc, &(rk->memory[rk_operand_from_Word_String(rk->memory[i]).data.as_i64]));
+    }
+    if (w.data.as_i64 != RK_INVALID_OP && colored) {
+        fprintf(fp,"%s\n", "\033[1;39m");
+    } else if (w.data.as_i64 != RK_INVALID_OP){
+        fprintf(fp,"\n");
+    } else {
+        fprintf(fp,"%s", "\033[1;39m");
+    }
+}
+
+void rk_print_Word(Word w, int colored, Roko* rk) {
+    rk_print_Word_2file(rk->out_fd, w, colored, rk);
+}
+
+
 void rk_dump_colored_2file(Roko* rk, FILE* fp, int colored) {
     char* color_esc;
     color_esc = (colored == 1 ? "\033[1;31m" : "");
@@ -217,71 +310,7 @@ void rk_dump_colored_2file(Roko* rk, FILE* fp, int colored) {
             fprintf(fp,"%s\t\t{%-8.8s}", color_esc, rk_type_Str(rk->memory[i].type));
         }
 
-        if (rk->memory[i].type == RK_TYPE_INT64 && rk->memory[i].data.as_i64 != RK_INVALID_OP) {
-            color_esc = (colored == 1 ? "\033[1;36m" : "");
-            fprintf(fp,"%s\t{%019" PRId64 "}", color_esc, rk->memory[i].data.as_i64);
-
-            color_esc = (colored == 1 ? "\033[1;35m" : "");
-            //TODO handle f64 words in memory
-            fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk->memory[i])));
-
-            color_esc = (colored == 1 ? "\033[1;37m" : "");
-            fprintf(fp,"%s\t\t<%-16.16" PRId64 ">", color_esc, rk_operand_from_Word_i64(rk->memory[i]).data.as_i64);
-
-            color_esc = (colored == 1 ? "\033[1;34m" : "");
-            fprintf(fp,"%s\t{0x%016" PRIx64 "}", color_esc, rk->memory[i].data.as_i64);
-        } else if (rk->memory[i].type == RK_TYPE_FLOAT64) {
-            color_esc = (colored == 1 ? "\033[1;35m" : "");
-            fprintf(fp,"%s\t\t\t\t{%026.6f}", color_esc, (double)rk->memory[i].data.as_i64);
-        } else if (rk->memory[i].type == RK_TYPE_CHAR) {
-            color_esc = (colored == 1 ? "\033[1;36m" : "");
-            fprintf(fp,"%s\t{%019" PRId64 "}", color_esc, rk->memory[i].data.as_i64);
-
-            color_esc = (colored == 1 ? "\033[1;35m" : "");
-            fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk->memory[i])));
-            int64_t value = rk_operand_from_Word_i64(rk->memory[i]).data.as_i64;
-            if (value >=32 && value <= 255) {
-                color_esc = (colored == 1 ? "\033[1;35m" : "");
-                fprintf(fp,"%s\t\t{%c}", color_esc, (char) value);
-            } else if (value == 0) {
-                color_esc = (colored == 1 ? "\033[1;36m" : "");
-                fprintf(fp,"%s\t\t{\\0}", color_esc);
-            } else {
-                color_esc = (colored == 1 ? "\033[1;37m" : "");
-                fprintf(fp,"%s\t\t{\\¿}", color_esc);
-            }
-            color_esc = (colored == 1 ? "\033[1;33m" : "");
-            fprintf(fp,"%s\t\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_i64(rk->memory[i]).data.as_i64);
-        } else if (rk->memory[i].type == RK_TYPE_STRING) {
-            color_esc = (colored == 1 ? "\033[1;36m" : "");
-            fprintf(fp,"%s\t{%019" PRId64 "}", color_esc, rk->memory[i].data.as_i64);
-            color_esc = (colored == 1 ? "\033[1;35m" : "");
-            fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk->memory[i])));
-            char str_buf[RK_MEM_SIZE-5] = {0};
-            int64_t str_offset = rk_operand_from_Word_i64(rk->memory[i]).data.as_i64;
-            for (int str_i = 0; str_i < RK_MEM_SIZE-5; str_i++) {
-                str_buf[str_i] = rk->memory[str_offset].data.as_i64;
-                if (str_buf[str_i] == 0 ) {
-                    break;
-                }
-                str_offset++;
-            }
-            //color_esc = (colored == 1 ? "\033[1;35m" : "");
-            //fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk->memory[i])));
-            color_esc = (colored == 1 ? "\033[1;33m" : "");
-            fprintf(fp,"%s\t\t{%s}", color_esc, str_buf);
-            color_esc = (colored == 1 ? "\033[1;36m" : "");
-            fprintf(fp,"%s\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_i64(rk->memory[i]).data.as_i64);
-            //color_esc = (colored == 1 ? "\033[1;36m" : "");
-            //fprintf(fp,"%s\t\t\t[%s]", color_esc, &(rk->memory[rk_operand_from_Word_String(rk->memory[i]).data.as_i64]));
-        }
-        if (rk->memory[i].data.as_i64 != RK_INVALID_OP && colored) {
-            fprintf(fp,"%s\n", "\033[1;39m");
-        } else if (rk->memory[i].data.as_i64 != RK_INVALID_OP){
-            fprintf(fp,"\n");
-        } else {
-            fprintf(fp,"%s", "\033[1;39m");
-        }
+        rk_print_Word_2file(fp,rk->memory[i],colored,rk);
     }
 }
 
@@ -503,12 +532,8 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
         }
         break;
         case RK_WRITE_CHAR: {
-            if (rk->memory[operand.data.as_i64].type != RK_TYPE_CHAR) {
-                fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_CHAR, rk->memory[operand.data.as_i64].type);
-                return 1;
-            }
-            if (!rk->out_fd) {
-                fprintf(stderr,"\n[ERROR] at %s(): rk->out_fd was NULL.\n",__func__);
+            if (operand.type != RK_TYPE_INT64) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, operand.type);
                 return 1;
             }
             if (operand.data.as_i64 > RK_MEM_SIZE-1) {
@@ -517,6 +542,15 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
             }
             if (operand.data.as_i64 < 0) {
                 fprintf(stderr,"\n\t[ERROR] at %s(): Invalid memory access, operand was negative.\n", __func__);
+                return 1;
+            }
+            if (rk->memory[operand.data.as_i64].type != RK_TYPE_CHAR) {
+                fprintf(stderr,"\n[WARN] at %s(): memory access type error, expected [%i] was [%i].",__func__, RK_TYPE_CHAR, rk->memory[operand.data.as_i64].type);
+                fprintf(stderr,"\n[WARN] at %s(): silent cast of mem type [%i] to [%i].\n",__func__, rk->memory[operand.data.as_i64].type, RK_TYPE_CHAR);
+                rk->memory[operand.data.as_i64].type = RK_TYPE_CHAR;
+            }
+            if (!rk->out_fd) {
+                fprintf(stderr,"\n[ERROR] at %s(): rk->out_fd was NULL.\n",__func__);
                 return 1;
             }
             int64_t value = rk_operand_from_Word_i64(rk->memory[operand.data.as_i64]).data.as_i64;
@@ -628,6 +662,69 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
             }
             //printf("Storing reg [%" PRId64 "] to mem{%" PRId64 "}.\n", reg, operand);
             rk->memory[operand.data.as_i64].data.as_i64 = rk->reg.data.as_i64;
+            rk->ic++;
+        }
+        break;
+        case RK_LOAD_CHAR: {
+            if (operand.type != RK_TYPE_INT64) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, operand.type);
+                return 1;
+            }
+            if (rk->reg.type != RK_TYPE_CHAR) {
+                fprintf(stderr,"\n[WARN] at %s(): reg type error, expected [%i] was [%i].",__func__, RK_TYPE_CHAR, rk->reg.type);
+                fprintf(stderr,"\n[WARN] at %s(): silent cast of reg type [%i] to [%i].\n",__func__, rk->reg.type, RK_TYPE_CHAR);
+                rk->reg.type = RK_TYPE_CHAR;
+            }
+            if (operand.data.as_i64 > RK_MEM_SIZE-1) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand > RK_MEM_SIZE-1.\n",__func__);
+                return 1;
+            }
+            if (operand.data.as_i64 < 0) {
+                fprintf(stderr,"\n\t[ERROR] at %s(): Invalid memory access, operand was negative.\n", __func__);
+                return 1;
+            }
+            if (rk->memory[operand.data.as_i64].type != RK_TYPE_CHAR) {
+                fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_CHAR, rk->memory[operand.data.as_i64].type);
+                return 1;
+            }
+            //printf("Loading a word from mem{%" PRId64 "}.\n", operand);
+            rk->reg.data.as_i64 = rk->memory[operand.data.as_i64].data.as_i64;
+            rk->reg.type = RK_TYPE_CHAR;
+            rk->ic++;
+        }
+        break;
+        case RK_STORE_CHAR: {
+            if (operand.type != RK_TYPE_INT64) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, operand.type);
+                return 1;
+            }
+            if (rk->reg.type != RK_TYPE_CHAR) {
+                fprintf(stderr,"\n[WARN] at %s(): reg type error, expected [%i] was [%i].",__func__, RK_TYPE_CHAR, rk->reg.type);
+                fprintf(stderr,"\n[WARN] at %s(): silent cast of reg type [%i] to [%i].\n",__func__, rk->reg.type, RK_TYPE_CHAR);
+                rk->reg.type = RK_TYPE_CHAR;
+            }
+            if (operand.data.as_i64 < 0) {
+                fprintf(stderr,"\n\t[ERROR] at %s(): Invalid memory access, operand was negative.\n", __func__);
+                return 1;
+            }
+            if (operand.data.as_i64 > RK_MEM_SIZE-1) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand > RK_MEM_SIZE-1.\n",__func__);
+                return 1;
+            }
+            if (rk->memory[operand.data.as_i64].type != RK_TYPE_CHAR) {
+                fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_CHAR, rk->memory[operand.data.as_i64].type);
+                return 1;
+                //rk->memory[operand.data.as_i64].type = RK_TYPE_CHAR;
+            }
+            int64_t value = rk_operand_from_Word_i64(rk->reg).data.as_i64;
+            if (value >= 0 && value <= 255) {
+            //printf("Storing reg [%" PRId64 "] to mem{%" PRId64 "}.\n", reg, operand);
+                rk->memory[operand.data.as_i64].data.as_i64 = rk->reg.data.as_i64;
+                rk->memory[operand.data.as_i64].type = rk->reg.type;
+            } else {
+                fprintf(stderr,"\n[ERROR] at %s(): value range error, expected [>=0, <=255] was [%" PRId64 "].\n",__func__, value);
+                return 1;
+            }
             rk->ic++;
         }
         break;

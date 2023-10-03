@@ -57,6 +57,8 @@ typedef enum RK_OP {
     RK_WRITE_STRING=14,
     RK_LOAD_I64=20,
     RK_STORE_I64=21,
+    RK_LOAD_CHAR=22,
+    RK_STORE_CHAR=23,
     RK_ADD_I64=30,
     RK_SUB_I64=31,
     RK_DIV_I64=32,
@@ -82,6 +84,8 @@ typedef enum RK_OP_Index {
     RK_WRITE_STRING_I,
     RK_LOAD_I64_I,
     RK_STORE_I64_I,
+    RK_LOAD_CHAR_I,
+    RK_STORE_CHAR_I,
     RK_ADD_I64_I,
     RK_SUB_I64_I,
     RK_DIV_I64_I,
@@ -115,6 +119,8 @@ extern const char* RK_OP_Str[RK_TOT_OP]; /**< Defines constant strings for RK_OP
 void rk_init(Roko* rk, int verbose_level); /**< Initialises the pre-allocated passed Roko pointer.*/
 const char* rk_op_Str(RK_OP op); /**< Returns a pointer to constant string for passed RK_OP.*/
 const char* rk_type_Str(Word_Type t); /**< Returns a pointer to constant string for passed Word_Type.*/
+void rk_print_Word_2file(FILE* fp, Word w, int colored, Roko* rk); /**< Tries printing passed Word to passed file pointer.*/
+void rk_print_Word(Word w, int colored, Roko* rk); /**< Tries printing passed Word to passed fp, bool for colored output.*/
 void rk_dump_colored_2file(Roko* rk, FILE* fp, int colored); /**< Dumps Roko state to passed fp, bool for colored output.*/
 void rk_dump(Roko* rk); /**< Dumps Roko state to passed fd with no color.*/
 int load_sum_prog(Roko* rk); /**< Loads hardcoded instructions for int sum program.*/
