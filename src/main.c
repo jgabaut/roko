@@ -31,11 +31,8 @@ int main (int argc, char** argv) {
         fprintf(stderr,"\n\t[ERROR] at %s(): Failed allocation..\n", __func__);
         return 1;
     }
-    #ifndef _WIN32
+
     rk_init(rk,argc);
-    #else
-    rk_init(rk,argc-1);
-    #endif
 
     int load_res = load_program_from_file(prog_file, rk);
 
