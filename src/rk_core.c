@@ -21,6 +21,7 @@ const char* RK_OP_Str[RK_TOT_OP] = {
     "RK_IMM_STRING",
     "RK_READ_I64",
     "RK_WRITE_I64",
+    "RK_READ_CHAR",
     "RK_WRITE_CHAR",
     "RK_WRITE_STRING",
     "RK_LOAD_I64",
@@ -105,6 +106,10 @@ const char* rk_op_Str(RK_OP op) {
         break;
         case RK_WRITE_I64: {
             return RK_OP_Str[RK_WRITE_I64_I];
+        }
+        break;
+        case RK_READ_CHAR: {
+            return RK_OP_Str[RK_READ_CHAR_I];
         }
         break;
         case RK_WRITE_CHAR: {
@@ -545,6 +550,42 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
                 return 1;
             }
             fprintf(stdout, "%" PRId64, rk->memory[operand.data.as_i64].data.as_i64);
+            rk->ic++;
+        }
+        break;
+        case RK_READ_CHAR: {
+            if (operand.type != RK_TYPE_INT64) {
+                fprintf(stderr,"\n[ERROR] at %s(): reg type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, operand.type);
+                return 1;
+            }
+            if (rk->memory[operand.data.as_i64].type != RK_TYPE_CHAR) {
+                fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_CHAR, rk->memory[operand.data.as_i64].type);
+                return 1;
+            }
+            if (!rk->out_fd) {
+                fprintf(stderr,"\n[ERROR] at %s(): rk->out_fd was NULL.\n",__func__);
+                return 1;
+            }
+            if (operand.data.as_i64 > RK_MEM_SIZE-1) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand > RK_MEM_SIZE-1.\n",__func__);
+                rk->ic++;
+                return 1;
+            }
+            if (operand.data.as_i64 < 0) {
+                fprintf(stderr,"\n\t[ERROR] at %s(): Invalid memory access, operand was negative.\n", __func__);
+                return 1;
+            }
+            fprintf(stdout, "?(char)\n");
+            char read_ch = '\0';
+            int read_res = scanf("%c", &read_ch);
+            if (read_res != 1) {
+                fprintf(stderr,"\n\t[ERROR] at %s(): Failed to read word from stdin.\n", __func__);
+                return 1;
+            }
+            if (read_ch >= 32 && read_ch <= 255 ) {
+                rk->memory[operand.data.as_i64].data.as_i64 = read_ch + (RK_WORD_FACTOR*RK_IMM_CHAR);
+            }
+            //printf("Res [%i] for reading a char.\n", read_res);
             rk->ic++;
         }
         break;
