@@ -21,6 +21,7 @@ const char* RK_OP_Str[RK_TOT_OP] = {
     "RK_READ_I64",
     "RK_WRITE_I64",
     "RK_WRITE_CHAR",
+    "RK_WRITE_STRING",
     "RK_LOAD_I64",
     "RK_STORE_I64",
     "RK_ADD_I64",
@@ -100,6 +101,10 @@ const char* rk_op_Str(RK_OP op) {
         break;
         case RK_WRITE_CHAR: {
             return RK_OP_Str[RK_WRITE_CHAR_I];
+        }
+        break;
+        case RK_WRITE_STRING: {
+            return RK_OP_Str[RK_WRITE_STRING_I];
         }
         break;
         case RK_LOAD_I64: {
@@ -462,8 +467,57 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
                 return 1;
             }
             int64_t value = rk_operand_from_Word_i64(rk->memory[operand.data.as_i64]).data.as_i64;
-            fprintf(stdout, "%c", (char) value);
+            if (value >= 32 && value <= 255) {
+                fprintf(stdout, "%c", (char) value);
+            } else if (value == 0) {
+                //fprintf(stdout, "\\0");
+                fprintf(stderr,"\n\t[WARN] at %s(): Tried printing \"\\0\".\n", __func__);
+            } else {
+                fprintf(stdout, "\\¿");
+            }
             rk->ic++;
+        }
+        break;
+        case RK_WRITE_STRING: {
+            if (operand.type != RK_TYPE_INT64) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, operand.type);
+                return 1;
+            }
+            if (operand.data.as_i64 > RK_MEM_SIZE-1) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand > RK_MEM_SIZE-1.\n",__func__);
+                return 1;
+            }
+            if (operand.data.as_i64 < 0) {
+                fprintf(stderr,"\n\t[ERROR] at %s(): Invalid memory access, operand was negative.\n", __func__);
+                return 1;
+            }
+            int64_t offset = operand.data.as_i64;
+            int64_t value = -1;
+            do {
+                if (rk->memory[offset].type != RK_TYPE_CHAR) {
+                    fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_CHAR, rk->memory[offset].type);
+                    return 1;
+                }
+                value = rk_operand_from_Word_i64(rk->memory[offset]).data.as_i64;
+                if (value >= 32 && value <= 255) {
+                    fprintf(stdout, "%c", (char) value);
+                } else if (value == 0) {
+                } else {
+                    fprintf(stdout, "\\¿");
+                }
+                offset++;
+            } while (value != '\0' && offset < RK_MEM_SIZE && rk->curr_op != RK_INVALID_OP);
+
+            if (value == '\0' && offset < RK_MEM_SIZE && rk->curr_op != RK_INVALID_OP) {
+                rk->ic++;
+                return 0;
+            } else if (!(offset < RK_MEM_SIZE)) {
+                fprintf(stderr,"\n[ERROR] at %s(): offet >= RK_MEM_SIZE. Value was {%" PRId64 "\n",__func__, value);
+                return 1;
+            } else {
+                fprintf(stderr,"\n[ERROR] at %s(): Value was {%" PRId64 "\n",__func__, value);
+                return 1;
+            }
         }
         break;
         case RK_LOAD_I64: {
@@ -768,7 +822,17 @@ int rk_execute(Roko* rk) {
             //Print current instruction counter
             //fprintf(rk->out_fd, "\tIC: {%i}", rk->ic);
             //Print operand for last operation done
-            fprintf(rk->out_fd, "%" PRId64, rk->operand.data.as_i64);
+            if (rk->curr_op == RK_IMM_CHAR) {
+                if (rk->operand.data.as_i64 == 0) {
+                    fprintf(rk->out_fd, "\\0");
+                } else if (rk->operand.data.as_i64 > 0) {
+                    fprintf(rk->out_fd, "%c", (char) rk->operand.data.as_i64);
+                } else {
+                    fprintf(rk->out_fd, "negative char?");
+                }
+            } else {
+                fprintf(rk->out_fd, "%" PRId64, rk->operand.data.as_i64);
+            }
             if (is_colored) {
                 fprintf(rk->out_fd, "\033[1;39m\n");
             } else {
