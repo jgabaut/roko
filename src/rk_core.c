@@ -38,10 +38,11 @@ const char* RK_OP_Str[RK_TOT_OP] = {
     "RK_JMPNEG_I64",
     "RK_JMPZERO_I64",
     "RK_HALT",
+    "RK_SET_VERBOSE",
 };
 
 const char* RK_Word_Type_Str[RK_TOT_TYPES] = {
-    "RK_NULL",
+    "null",
     "I64",
     "F64",
     "char",
@@ -53,7 +54,7 @@ void rk_init(Roko* rk, int verbose_level) {
         return;
     }
     for (int i = 0; i < RK_MEM_SIZE; i++) {
-        rk->memory[i].type = RK_TYPE_INT64;
+        rk->memory[i].type = RK_TYPE_NULL;
         rk->memory[i].data.as_i64 = RK_INVALID_OP;
     }
     rk->reg.type = RK_TYPE_INT64;
@@ -174,6 +175,10 @@ const char* rk_op_Str(RK_OP op) {
         break;
         case RK_HALT: {
             return RK_OP_Str[RK_HALT_I];
+        }
+        break;
+        case RK_SET_VERBOSE: {
+            return RK_OP_Str[RK_SET_VERBOSE_I];
         }
         break;
         default: {
@@ -301,6 +306,7 @@ void rk_dump_colored_2file(Roko* rk, FILE* fp, int colored) {
     }
     color_esc = (colored == 1 ? "\033[1;33m" : "");
     fprintf(fp,"%s",color_esc);
+    fprintf(fp,"Verbose level:\t{%i}\n",rk->verbose_level);
     fprintf(fp,"Registers:\n");
     fprintf(fp,"reg\t{%019" PRId64 "} {%s}\n", rk->reg.data.as_i64, rk_type_Str(rk->reg.type));
     fprintf(fp,"ic\t{%i}\n",rk->ic);
@@ -777,7 +783,7 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
             int64_t value = rk_operand_from_Word_i64(rk->reg).data.as_i64;
             if (value >= 0 && value <= 255) {
             //printf("Storing reg [%" PRId64 "] to mem{%" PRId64 "}.\n", reg, operand);
-                rk->memory[operand.data.as_i64].data.as_i64 = rk->reg.data.as_i64;
+                rk->memory[operand.data.as_i64].data.as_i64 = value + (RK_WORD_FACTOR * RK_IMM_CHAR);
                 rk->memory[operand.data.as_i64].type = rk->reg.type;
             } else {
                 fprintf(stderr,"\n[ERROR] at %s(): value range error, expected [>=0, <=255] was [%" PRId64 "].\n",__func__, value);
@@ -876,16 +882,16 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
                 fprintf(stderr,"\n[ERROR] at %s(): reg type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, rk->reg.type);
                 return 1;
             }
-            if (rk->memory[operand.data.as_i64].type != RK_TYPE_INT64) {
-                fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, rk->memory[operand.data.as_i64].type);
-                return 1;
-            }
             if (operand.data.as_i64 > RK_MEM_SIZE-1) {
                 fprintf(stderr,"\n[ERROR] at %s(): operand > RK_MEM_SIZE-1.\n",__func__);
                 return 1;
             }
             if (operand.data.as_i64 < 0) {
                 fprintf(stderr,"\n\t[ERROR] at %s(): Invalid memory access, operand was negative.\n", __func__);
+                return 1;
+            }
+            if (rk->memory[operand.data.as_i64].type != RK_TYPE_INT64) {
+                fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, rk->memory[operand.data.as_i64].type);
                 return 1;
             }
             //printf("Multiplying reg by mem{%" PRId64 "}.\n", operand);
@@ -953,6 +959,31 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
             if (rk->verbose_level > 1) {
                 rk_dump(rk);
             }
+            return 0;
+        }
+        break;
+        case RK_SET_VERBOSE: {
+            if (operand.type != RK_TYPE_INT64) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, operand.type);
+                return 1;
+            }
+            if (operand.data.as_i64 > RK_MEM_SIZE-1) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand > RK_MEM_SIZE-1.\n",__func__);
+                return 1;
+            }
+            if (operand.data.as_i64 < 0) {
+                fprintf(stderr,"\n\t[ERROR] at %s(): Invalid memory access, operand was negative.\n", __func__);
+                return 1;
+            }
+            int64_t value = rk->memory[operand.data.as_i64].data.as_i64;
+            if (value >=0 && value <= 3) {
+                rk->verbose_level = value;
+            } else {
+                fprintf(stderr,"\n\t[WARN] at %s(): Value {%" PRId64 " is not a valid verbose level.\n", __func__, value);
+                rk->ic++;
+                return 0;
+            }
+            rk->ic++;
             return 0;
         }
         break;
@@ -1119,6 +1150,12 @@ int rk_load_word_from_file(Roko* rk, FILE* fp, int64_t pos) {
     } else if (rk_op_from_Word(rk->memory[pos]) == RK_IMM_STRING) {
         rk->memory[pos].type = RK_TYPE_STRING;
     } else if (rk_op_from_Word(rk->memory[pos]) == RK_IMM_I64) {
+        rk->memory[pos].type = RK_TYPE_INT64;
+    } else {
+        if (rk->verbose_level > 3) {
+            fprintf(stderr,"\n\t[WARN] at %s(): rk->memory[%" PRId64 "].type was [%i].", __func__, pos, rk->memory[pos].type);
+            fprintf(stderr,"\n\t[WARN] casting rk->memory[%" PRId64 "].type {%i} to [%i].\n", pos, rk->memory[pos].type, RK_TYPE_INT64);
+        }
         rk->memory[pos].type = RK_TYPE_INT64;
     }
 

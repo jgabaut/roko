@@ -70,6 +70,7 @@ typedef enum RK_OP {
     RK_JMPNEG_I64=41,
     RK_JMPZERO_I64=42,
     RK_HALT=43,
+    RK_SET_VERBOSE=50
 } RK_OP; /**< Defines opcodes for Roko ops.*/
 
 typedef enum RK_OP_Index {
@@ -98,6 +99,7 @@ typedef enum RK_OP_Index {
     RK_JMPNEG_I64_I,
     RK_JMPZERO_I64_I,
     RK_HALT_I,
+    RK_SET_VERBOSE_I,
     RK_TOT_OP_I
 } RK_OP_Index; /**< Defines zero-based, contiguous indexes for RK_OP.*/
 
