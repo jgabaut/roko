@@ -18,6 +18,7 @@ const char* RK_OP_Str[RK_TOT_OP] = {
     "RK_INVALID_OP",
     "RK_IMM_CHAR",
     "RK_PRINTNL",
+    "RK_IMM_STRING",
     "RK_READ_I64",
     "RK_WRITE_I64",
     "RK_WRITE_CHAR",
@@ -41,6 +42,7 @@ const char* RK_Word_Type_Str[RK_TOT_TYPES] = {
     "I64",
     "F64",
     "char",
+    "string",
 };
 
 void rk_init(Roko* rk, int verbose_level) {
@@ -89,6 +91,10 @@ const char* rk_op_Str(RK_OP op) {
         break;
         case RK_PRINTNL: {
             return RK_OP_Str[RK_PRINTNL_I];
+        }
+        break;
+        case RK_IMM_STRING: {
+            return RK_OP_Str[RK_IMM_STRING_I];
         }
         break;
         case RK_READ_I64: {
@@ -167,7 +173,8 @@ const char* rk_type_Str(Word_Type t) {
         case RK_TYPE_NULL:
         case RK_TYPE_INT64:
         case RK_TYPE_FLOAT64:
-        case RK_TYPE_CHAR: {
+        case RK_TYPE_CHAR:
+        case RK_TYPE_STRING: {
             return RK_Word_Type_Str[t];
         }
         break;
@@ -198,7 +205,7 @@ void rk_dump_colored_2file(Roko* rk, FILE* fp, int colored) {
     fprintf(fp,"curr_op\t{%s} -> {%i}\n", rk_op_Str(rk->curr_op), rk->curr_op);
     fprintf(fp,"operand\t{%019" PRId64 "} {%s}\n", rk->operand.data.as_i64, rk_type_Str(rk->operand.type));
     fprintf(fp,"\nMemory (Only valid op locations are printed):\n");
-    fprintf(fp,"\tType:\tAs i64\t\t\tAs RK_OP\n");
+    fprintf(fp,"\t\tType:\t\tAs i64\t\t\tAs RK_OP\t\tAs operand\t\tAs hex\n");
     for (int i=0; i < RK_MEM_SIZE; i++) {
         //if (i<10) printf("{%i}:\t{%+020li}\n", i, memory[i]);
         //if (i<11) {
@@ -207,7 +214,7 @@ void rk_dump_colored_2file(Roko* rk, FILE* fp, int colored) {
             fprintf(fp,"%s[%i]:->", color_esc, i);
 
             color_esc = (colored == 1 ? "\033[1;32m" : "");
-            fprintf(fp,"%s\t{%s}", color_esc, rk_type_Str(rk->memory[i].type));
+            fprintf(fp,"%s\t\t{%-8.8s}", color_esc, rk_type_Str(rk->memory[i].type));
         }
 
         if (rk->memory[i].type == RK_TYPE_INT64 && rk->memory[i].data.as_i64 != RK_INVALID_OP) {
@@ -232,10 +239,41 @@ void rk_dump_colored_2file(Roko* rk, FILE* fp, int colored) {
 
             color_esc = (colored == 1 ? "\033[1;35m" : "");
             fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk->memory[i])));
+            int64_t value = rk_operand_from_Word_i64(rk->memory[i]).data.as_i64;
+            if (value >=32 && value <= 255) {
+                color_esc = (colored == 1 ? "\033[1;35m" : "");
+                fprintf(fp,"%s\t\t{%c}", color_esc, (char) value);
+            } else if (value == 0) {
+                color_esc = (colored == 1 ? "\033[1;36m" : "");
+                fprintf(fp,"%s\t\t{\\0}", color_esc);
+            } else {
+                color_esc = (colored == 1 ? "\033[1;37m" : "");
+                fprintf(fp,"%s\t\t{\\¿}", color_esc);
+            }
             color_esc = (colored == 1 ? "\033[1;33m" : "");
-            fprintf(fp,"%s\t\t{%c}", color_esc, (char) rk_operand_from_Word_i64(rk->memory[i]).data.as_i64);
+            fprintf(fp,"%s\t\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_i64(rk->memory[i]).data.as_i64);
+        } else if (rk->memory[i].type == RK_TYPE_STRING) {
+            color_esc = (colored == 1 ? "\033[1;36m" : "");
+            fprintf(fp,"%s\t{%019" PRId64 "}", color_esc, rk->memory[i].data.as_i64);
             color_esc = (colored == 1 ? "\033[1;35m" : "");
-            fprintf(fp,"%s\t\t\t[%" PRId64 "]", color_esc, rk_operand_from_Word_i64(rk->memory[i]).data.as_i64);
+            fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk->memory[i])));
+            char str_buf[RK_MEM_SIZE-5] = {0};
+            int64_t str_offset = rk_operand_from_Word_i64(rk->memory[i]).data.as_i64;
+            for (int str_i = 0; str_i < RK_MEM_SIZE-5; str_i++) {
+                str_buf[str_i] = rk->memory[str_offset].data.as_i64;
+                if (str_buf[str_i] == 0 ) {
+                    break;
+                }
+                str_offset++;
+            }
+            //color_esc = (colored == 1 ? "\033[1;35m" : "");
+            //fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk->memory[i])));
+            color_esc = (colored == 1 ? "\033[1;33m" : "");
+            fprintf(fp,"%s\t\t{%s}", color_esc, str_buf);
+            color_esc = (colored == 1 ? "\033[1;36m" : "");
+            fprintf(fp,"%s\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_i64(rk->memory[i]).data.as_i64);
+            //color_esc = (colored == 1 ? "\033[1;36m" : "");
+            //fprintf(fp,"%s\t\t\t[%s]", color_esc, &(rk->memory[rk_operand_from_Word_String(rk->memory[i]).data.as_i64]));
         }
         if (rk->memory[i].data.as_i64 != RK_INVALID_OP && colored) {
             fprintf(fp,"%s\n", "\033[1;39m");
@@ -347,6 +385,10 @@ Word rk_operand_from_Word_i64(Word w) {
     return (Word){ .type = RK_TYPE_INT64, .data.as_i64 = w.data.as_i64 % RK_WORD_FACTOR };
 }
 
+Word rk_operand_from_Word_String(Word w) {
+    return (Word){ .type = RK_TYPE_STRING, .data.as_i64 = w.data.as_i64 % RK_WORD_FACTOR };
+}
+
 Word rk_operand_from_Word_f64(Word w) {
     return (Word){ .type = RK_TYPE_FLOAT64, .data.as_f64 = ((int64_t) w.data.as_f64) % RK_WORD_FACTOR };
 }
@@ -375,8 +417,8 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
         }
         break;
         case RK_IMM_CHAR: {
-            if (operand.type != RK_TYPE_INT64) {
-                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, operand.type);
+            if (operand.type != RK_TYPE_CHAR) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_CHAR, operand.type);
                 return 1;
             }
             rk->reg.data.as_i64 = operand.data.as_i64;
@@ -387,6 +429,17 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
         break;
         case RK_PRINTNL: {
             fprintf(stdout,"\n");
+            rk->ic++;
+            return 0;
+        }
+        break;
+        case RK_IMM_STRING: {
+            if (operand.type != RK_TYPE_STRING) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_STRING, operand.type);
+                return 1;
+            }
+            rk->reg.data.as_i64 = operand.data.as_i64;
+            rk->reg.type = RK_TYPE_STRING;
             rk->ic++;
             return 0;
         }
@@ -471,8 +524,9 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
                 fprintf(stdout, "%c", (char) value);
             } else if (value == 0) {
                 //fprintf(stdout, "\\0");
-                fprintf(stderr,"\n\t[WARN] at %s(): Tried printing \"\\0\".\n", __func__);
+                fprintf(stderr,"\t[WARN] at %s(): Tried printing \"\\0\".\n", __func__);
             } else {
+                fprintf(stderr,"\t[WARN] at %s(): Tried printing \"\\{%" PRId64 "}\" as char.\n", __func__, value);
                 fprintf(stdout, "\\¿");
             }
             rk->ic++;
@@ -491,11 +545,19 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
                 fprintf(stderr,"\n\t[ERROR] at %s(): Invalid memory access, operand was negative.\n", __func__);
                 return 1;
             }
-            int64_t offset = operand.data.as_i64;
             int64_t value = -1;
+            int64_t string_p_addr = operand.data.as_i64;
+            if (rk->memory[string_p_addr].type != RK_TYPE_STRING) {
+                fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_STRING, rk->memory[string_p_addr].type);
+                return 1;
+            }
+
+            int64_t offset = rk_operand_from_Word_String(rk->memory[string_p_addr]).data.as_i64;
+
             do {
                 if (rk->memory[offset].type != RK_TYPE_CHAR) {
                     fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_CHAR, rk->memory[offset].type);
+                    fprintf(stderr,"\n[HINT] op was {%s}, maybe a missing null terminator?\n",rk_op_Str(op));
                     return 1;
                 }
                 value = rk_operand_from_Word_i64(rk->memory[offset]).data.as_i64;
@@ -512,7 +574,7 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
                 rk->ic++;
                 return 0;
             } else if (!(offset < RK_MEM_SIZE)) {
-                fprintf(stderr,"\n[ERROR] at %s(): offet >= RK_MEM_SIZE. Value was {%" PRId64 "\n",__func__, value);
+                fprintf(stderr,"\n[ERROR] at %s(): offet >= RK_MEM_SIZE. Missing null terminator?\nValue was {%" PRId64 "\n",__func__, value);
                 return 1;
             } else {
                 fprintf(stderr,"\n[ERROR] at %s(): Value was {%" PRId64 "\n",__func__, value);
@@ -807,7 +869,16 @@ int rk_execute(Roko* rk) {
     do  {
         rk->ir = rk->memory[rk->ic];
         rk->curr_op = rk_op_from_Word(rk->ir);
-        rk->operand = rk_operand_from_Word_i64(rk->ir);
+        if (rk->curr_op == RK_IMM_STRING) {
+            rk->operand = rk_operand_from_Word_String(rk->ir);
+            rk->operand.type = RK_TYPE_STRING;
+        } else if (rk->curr_op == RK_IMM_CHAR) {
+            rk->operand = rk_operand_from_Word_i64(rk->ir);
+            rk->operand.type = RK_TYPE_CHAR;
+        } else {
+            rk->operand = rk_operand_from_Word_i64(rk->ir);
+            rk->operand.type = RK_TYPE_INT64;
+        }
         op_res = rk_do_op(rk->curr_op, rk->operand, rk);
 
         if (rk->verbose_level > 0) {
@@ -823,12 +894,13 @@ int rk_execute(Roko* rk) {
             //fprintf(rk->out_fd, "\tIC: {%i}", rk->ic);
             //Print operand for last operation done
             if (rk->curr_op == RK_IMM_CHAR) {
-                if (rk->operand.data.as_i64 == 0) {
+                int64_t value = rk->operand.data.as_i64;
+                if (value == 0) {
                     fprintf(rk->out_fd, "\\0");
-                } else if (rk->operand.data.as_i64 > 0) {
+                } else if (value >= 32 && value <= 255) {
                     fprintf(rk->out_fd, "%c", (char) rk->operand.data.as_i64);
                 } else {
-                    fprintf(rk->out_fd, "negative char?");
+                    fprintf(rk->out_fd, "\\¿");
                 }
             } else {
                 fprintf(rk->out_fd, "%" PRId64, rk->operand.data.as_i64);
@@ -875,6 +947,8 @@ int rk_load_word_from_file(Roko* rk, FILE* fp, int64_t pos) {
     res = fscanf(fp,"%" SCNd64 , &(rk->memory[pos].data.as_i64));
     if (rk_op_from_Word(rk->memory[pos]) == RK_IMM_CHAR) {
         rk->memory[pos].type = RK_TYPE_CHAR;
+    } else if (rk_op_from_Word(rk->memory[pos]) == RK_IMM_STRING) {
+        rk->memory[pos].type = RK_TYPE_STRING;
     } else if (rk_op_from_Word(rk->memory[pos]) == RK_IMM_I64) {
         rk->memory[pos].type = RK_TYPE_INT64;
     }

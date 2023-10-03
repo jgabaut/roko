@@ -26,6 +26,7 @@ typedef enum Word_Type {
     RK_TYPE_INT64, /**< Defines integer type with 64bit len.*/
     RK_TYPE_FLOAT64, /**< Defines double precision float type.*/
     RK_TYPE_CHAR, /**< Defines char type.*/
+    RK_TYPE_STRING, /**< Defines string type.*/
     RK_TOT_TYPES, /**< Defines number of total types.*/
 } Word_Type; /**< Defined types for Word data.*/
 
@@ -49,6 +50,7 @@ typedef enum RK_OP {
     RK_INVALID_OP=1,
     RK_IMM_CHAR=2,
     RK_PRINTNL=3,
+    RK_IMM_STRING=4,
     RK_READ_I64=10,
     RK_WRITE_I64=11,
     RK_WRITE_CHAR=13,
@@ -73,6 +75,7 @@ typedef enum RK_OP_Index {
     RK_INVALID_OP_I,
     RK_IMM_CHAR_I,
     RK_PRINTNL_I,
+    RK_IMM_STRING_I,
     RK_READ_I64_I,
     RK_WRITE_I64_I,
     RK_WRITE_CHAR_I,
@@ -120,6 +123,7 @@ int load_max_prog(Roko* rk); /**< Loads hardcoded instructions for max program.*
 int load_bad_prog(Roko* rk); /**< Loads hardcoded instructions for a non-halting program.*/
 RK_OP rk_op_from_Word(Word w); /**< Returns a RK_OP from the passed Word.*/
 Word rk_operand_from_Word_i64(Word w); /**< Returns an i64 operand from passed Word.*/
+Word rk_operand_from_Word_String(Word w); /**< Returns a String operand from passed Word.*/
 Word rk_operand_from_Word_f64(Word w); /**< Returns an f64 operand from passed Word.*/
 int rk_do_op(RK_OP op, Word operand, Roko* rk); /**< Returns 0 if the requested op is successful, other values are errors.*/
 int rk_execute(Roko* rk); /**< Starts execution from current Roko state.*/
