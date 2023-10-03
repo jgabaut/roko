@@ -31,7 +31,11 @@ int main (int argc, char** argv) {
         fprintf(stderr,"\n\t[ERROR] at %s(): Failed allocation..\n", __func__);
         return 1;
     }
+    #ifndef _WIN32
     rk_init(rk,argc);
+    #else
+    rk_init(rk,argc-1);
+    #endif
 
     int load_res = load_program_from_file(prog_file, rk);
 
@@ -47,8 +51,12 @@ int main (int argc, char** argv) {
     /*
     printf("\nQuitting.\033[1;39m\n");
     */
+    #ifndef _WIN32
     printf("%s", (res == 0 ? "\033[1;32m" : "\033[1;31m"));
     printf("Res: {%i}\033[1;39m\n", res);
+    #else
+    printf("Res: {%i}\n", res);
+    #endif
     fclose(rk->out_fd);
     free(rk);
     return res;

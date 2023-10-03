@@ -176,6 +176,7 @@ const char* rk_op_Str(RK_OP op) {
         }
         break;
     }
+    return "Unreachable";
 }
 
 const char* rk_type_Str(Word_Type t) {
@@ -193,6 +194,8 @@ const char* rk_type_Str(Word_Type t) {
         }
         break;
     }
+
+    return "Unreachable";
 }
 
 void rk_print_Word_2file(FILE* fp, Word w, int colored, Roko* rk) {
@@ -269,7 +272,9 @@ void rk_print_Word_2file(FILE* fp, Word w, int colored, Roko* rk) {
     } else if (w.data.as_i64 != RK_INVALID_OP){
         fprintf(fp,"\n");
     } else {
+        #ifndef _WIN32
         fprintf(fp,"%s", "\033[1;39m");
+        #endif
     }
 }
 
@@ -315,7 +320,11 @@ void rk_dump_colored_2file(Roko* rk, FILE* fp, int colored) {
 }
 
 void rk_dump(Roko* rk) {
+    #ifndef _WIN32
     rk_dump_colored_2file(rk, rk->coredump_fd, 1);
+    #else
+    rk_dump_colored_2file(rk, rk->coredump_fd, 0);
+    #endif
 }
 
 int load_sum_prog(Roko* rk) {
@@ -425,13 +434,21 @@ Word rk_operand_from_Word_f64(Word w) {
 int rk_do_op(RK_OP op, Word operand, Roko* rk) {
     switch (op) {
         case RK_INVALID_OP: {
+            #ifndef _WIN32
             fprintf(stderr,"\033[1;33m[WARN] at %s(): Doing RK_INVALID_OP.\033[1;39m\n",__func__);
+            #else
+            fprintf(stderr,"[WARN] at %s(): Doing RK_INVALID_OP.\n",__func__);
+            #endif
             rk->ic++;
             return 1;
         }
         break;
         case RK_PANIC: {
+            #ifndef _WIN32
             fprintf(stderr,"\033[1;31m[PANIC] at %s(): Roko panic at ic [%i].\033[1;39m\n",__func__,rk->ic);
+            #else
+            fprintf(stderr,"[PANIC] at %s(): Roko panic at ic [%i].\n",__func__,rk->ic);
+            #endif
             return 1;
         }
         break;
@@ -1010,9 +1027,19 @@ int rk_execute(Roko* rk) {
         }
 
         if (op_res != 0) {
+            #ifndef _WIN32
             fprintf(stderr,"\n\033[1;31m\t[ERROR] at %s():\n\tIC {%i}\n\top_res = {%i} for op {%s} [%i].\033[1;39m\n", __func__, rk->ic, op_res, rk_op_Str(rk->curr_op), rk->curr_op);
+            #else
+            fprintf(stderr,"\n\t[ERROR] at %s():\n\tIC {%i}\n\top_res = {%i} for op {%s} [%i].\n", __func__, rk->ic, op_res, rk_op_Str(rk->curr_op), rk->curr_op);
+            #endif
+
             if (rk->curr_op != RK_HALT) {
+                #ifndef _WIN32
                 fprintf(stderr,"\n\033[1;31m[ERROR] at %s(): op [%s] failed with [%i], curr_op was not RK_HALT.\033[1;39m\n", __func__, rk_op_Str(rk->curr_op), op_res);
+                #else
+                fprintf(stderr,"\n[ERROR] at %s(): op [%s] failed with [%i], curr_op was not RK_HALT.\n", __func__, rk_op_Str(rk->curr_op), op_res);
+                #endif
+
             }
             rk_dump(rk);
             return op_res;
@@ -1020,7 +1047,11 @@ int rk_execute(Roko* rk) {
     } while (rk->curr_op != RK_HALT && rk->curr_op != RK_PANIC && rk->ic < RK_MEM_SIZE); //End of execution loop
 
     if (rk->curr_op != RK_HALT) {
+        #ifndef _WIN32
         fprintf(stderr,"\n\033[1;31m[ERROR] at %s(): execution reached end of memory without halting.\033[1;39m\n", __func__);
+        #else
+        fprintf(stderr,"\n[ERROR] at %s(): execution reached end of memory without halting.\n", __func__);
+        #endif
         return 1;
     }
     return op_res;
