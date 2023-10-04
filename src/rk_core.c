@@ -294,7 +294,7 @@ void rk_print_Word_2file(FILE* fp, Word w, int colored, Roko* rk) {
 
         color_esc = (colored == 1 ? "\033[1;35m" : "");
         fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk,w)));
-        int64_t value = rk_operand_from_Word_i64(rk,w).data.as_i64;
+        uint64_t value = rk_operand_from_Word_u64(rk,w).data.as_u64;
         if (value >=32 && value <= 255) {
             color_esc = (colored == 1 ? "\033[1;35m" : "");
             fprintf(fp,"%s\t\t{%c}", color_esc, (char) value);
@@ -306,27 +306,46 @@ void rk_print_Word_2file(FILE* fp, Word w, int colored, Roko* rk) {
             fprintf(fp,"%s\t\t{\\¿}", color_esc);
         }
         color_esc = (colored == 1 ? "\033[1;33m" : "");
-        fprintf(fp,"%s\t\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_i64(rk,w).data.as_i64);
+        fprintf(fp,"%s\t\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_u64(rk,w).data.as_u64);
     } else if (w.type == RK_TYPE_STRING) {
         color_esc = (colored == 1 ? "\033[1;36m" : "");
         fprintf(fp,"%s\t{%019" PRId64 "}", color_esc, data);
         color_esc = (colored == 1 ? "\033[1;35m" : "");
         fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk,w)));
         char str_buf[RK_MEM_SIZE-5] = {0};
-        int64_t str_offset = rk_operand_from_Word_i64(rk,w).data.as_i64;
-        for (int str_i = 0; str_i < RK_MEM_SIZE-5; str_i++) {
-            str_buf[str_i] = rk->memory[str_offset].data.as_i64;
-            if (str_buf[str_i] == 0 ) {
-                break;
+        if ( rk->mode == RK_7BIT_OPCODES_MODE) {
+            int64_t str_offset = rk_operand_from_Word_i64(rk,w).data.as_i64;
+            for (int str_i = 0; str_i < RK_MEM_SIZE-5; str_i++) {
+                str_buf[str_i] = rk->memory[str_offset].data.as_i64;
+                if (str_buf[str_i] == 0 ) {
+                    break;
+                }
+                str_offset++;
             }
-            str_offset++;
+        } else if ( rk->mode == RK_8BIT_OPCODES_MODE) {
+            uint64_t str_offset = rk_operand_from_Word_u64(rk,w).data.as_u64;
+            for (int str_i = 0; str_i < RK_MEM_SIZE-5; str_i++) {
+                str_buf[str_i] = rk_operand_from_Word_u64(rk,rk->memory[str_offset]).data.as_u64;
+                if (str_buf[str_i] == 0 ) {
+                    break;
+                }
+                str_offset++;
+            }
+        } else {
+            assert(0 && "Unreachable!\n");
         }
         //color_esc = (colored == 1 ? "\033[1;35m" : "");
         //fprintf(fp,"%s\t<%-13.13s>", color_esc, rk_op_Str(rk_op_from_Word(rk->memory[i])));
         color_esc = (colored == 1 ? "\033[1;33m" : "");
         fprintf(fp,"%s\t\t{%s}", color_esc, str_buf);
         color_esc = (colored == 1 ? "\033[1;36m" : "");
-        fprintf(fp,"%s\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_i64(rk,w).data.as_i64);
+        if ( rk->mode == RK_7BIT_OPCODES_MODE) {
+            fprintf(fp,"%s\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_i64(rk,w).data.as_i64);
+        } else if ( rk->mode == RK_8BIT_OPCODES_MODE) {
+            fprintf(fp,"%s\t\t[0x%016" PRIx64 "]", color_esc, rk_operand_from_Word_u64(rk,w).data.as_u64);
+        } else {
+            assert(0 && "Unreachable!\n");
+        }
         //color_esc = (colored == 1 ? "\033[1;36m" : "");
         //fprintf(fp,"%s\t\t\t[%s]", color_esc, &(rk->memory[rk_operand_from_Word_String(rk->memory[i]).data.as_i64]));
     }
@@ -615,7 +634,7 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
                 fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_CHAR, operand.type);
                 return 1;
             }
-            rk->reg.data.as_i64 = operand.data.as_i64;
+            rk->reg.data.as_u64 = operand.data.as_u64;
             rk->reg.type = RK_TYPE_CHAR;
             rk->ic++;
             return 0;
@@ -632,7 +651,7 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
                 fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_STRING, operand.type);
                 return 1;
             }
-            rk->reg.data.as_i64 = operand.data.as_i64;
+            rk->reg.data.as_u64 = operand.data.as_u64;
             rk->reg.type = RK_TYPE_STRING;
             rk->ic++;
             return 0;
@@ -1343,6 +1362,7 @@ int load_program_from_file(FILE* fp, Roko* rk) {
         }
         if (rk_op_from_Word(rk,rk->memory[i]) == RK_PANIC || rk_op_from_Word(rk,rk->memory[i]) == RK_INVALID_OP) {
             if (rk->verbose_level > 1) fprintf(stdout, "Done loading program from %s.\n", ( fp == stdin ? "stdin" : "file"));
+            if (rk->verbose_level > 1) fprintf(stdout, "Read [%i] instructions.\n", i);
             break;
         }
     }
