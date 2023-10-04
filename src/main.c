@@ -2,7 +2,7 @@
 
 int main (int argc, char** argv) {
 
-    //printf("\nRoko interpreter v%s.\n\tLoads a program from the passed .rkasm file, or from stdin.\n", string_roko_version());
+    printf("\nRoko interpreter v%s.\n\tLoads a program from the passed .rkasm file, or from stdin.\n", string_roko_version());
 
     /*
     printf("Built with amboso v%s.\n",get_ANVIL__API__LEVEL__());
@@ -32,7 +32,7 @@ int main (int argc, char** argv) {
         return 1;
     }
 
-    rk_init(rk,argc);
+    rk_init(rk,RK_7BIT_OPCODES_MODE,argc);
 
     int load_res = load_program_from_file(prog_file, rk);
 

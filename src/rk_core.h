@@ -23,7 +23,8 @@ void usage(const char* prog); /**< Prints correct invocation for main.*/
 
 typedef enum Word_Type {
     RK_TYPE_NULL=0, /**< Defines NULL type.*/
-    RK_TYPE_INT64, /**< Defines integer type with 64bit len.*/
+    RK_TYPE_UINT64, /**< Defines unsigned integer type with 64bit len.*/
+    RK_TYPE_INT64, /**< Defines signed integer type with 64bit len.*/
     RK_TYPE_FLOAT64, /**< Defines double precision float type.*/
     RK_TYPE_CHAR, /**< Defines char type.*/
     RK_TYPE_STRING, /**< Defines string type.*/
@@ -35,19 +36,30 @@ extern const char* RK_Word_Type_Str[RK_TOT_TYPES]; /**< Defines constant strings
 typedef struct Word {
     Word_Type type; /**< Type for the word.*/
     union {
+        uint64_t as_u64; /**< Field used when type == RK_TYPE_UINT64*/
         int64_t as_i64; /**< Field used when type == RK_TYPE_INT64*/
         double as_f64; /**< Field used when type == RK_TYPE_FLOAT64*/
     } data; /**< Data field for the word.*/
 } Word; /**< Defines a Word struct for Roko.*/
 
 #define RK_MEM_SIZE 100 /**< Defines static memory array size for Roko.*/
-#define RK_WORD_FACTOR 100000000000000000 /**< Defines factor for Word operand modulo.*/
-#define RK_EOF -999999999999999999 /**< Defines flag value to end a rkasm file.*/
+#define RK_WORD_7BIT_FACTOR 100000000000000000 /**< Defines decimal factor for 7bit Word operand modulo.*/
+#define RK_WORD_7BIT_FACTOR_HEX 0x16345785D8A0000 /**< Defines hex factor for 7bit Word operand modulo.*/
+
+#define RK_MAX_UNSIGNED_7BIT_OPS ((UINT64_MAX / RK_WORD_7BIT_FACTOR)) /**< Defines the forced limit on total unsigned 7bit opcodes, by the max value of int64_t.*/
+#define RK_MAX_SIGNED_7BIT_OPS ((INT64_MAX / RK_WORD_7BIT_FACTOR) +1) /**< Defines the forced limit on total signed 7bit opcodes, by the max value of int64_t.*/
+#define RK_MAX_SIGNED_7BIT_OPS_HEX ((INT64_MAX / RK_WORD_7BIT_FACTOR_HEX) +1) /**< Defines the forced limit on total 7bit opcodes, by the max value of int64_t using the hex factor macro.*/
+#define RK_WORD_8BIT_FACTOR ((UINT64_MAX / 256))  //72057594037927935
+#define RK_WORD_8BIT_FACTOR_HEX 0xffffffffffffff
+#define RK_MAX_UNSIGNED_8BIT_OPS ((UINT64_MAX / RK_WORD_8BIT_FACTOR)) /**< Defines the forced limit on total unsigned 8bit opcodes, by the max value of uint64_t.*/
+#define RK_MAX_SIGNED_8BIT_OPS ((INT64_MAX / RK_WORD_8BIT_FACTOR) +1) /**< Defines the forced limit on total signed 8bit opcodes, by the max value of uint64_t.*/
+#define RK_MAX_SIGNED_8BIT_OPS_HEX ((INT64_MAX / RK_WORD_8BIT_FACTOR_HEX) +1) /**< Defines the forced limit on total signed 8bit opcodes, by the max value of uint64_t using the hex factor macro.*/
 
 typedef enum RK_OP {
     RK_PANIC=-92,
-    RK_IMM_I64=0,
-    RK_INVALID_OP=1,
+    RK_INVALID_OP=-1,
+    RK_IMM_U64=0,
+    RK_IMM_I64=1,
     RK_IMM_CHAR=2,
     RK_PRINTNL=3,
     RK_IMM_STRING=4,
@@ -75,8 +87,9 @@ typedef enum RK_OP {
 
 typedef enum RK_OP_Index {
     RK_PANIC_I=0,
-    RK_IMM_I64_I,
     RK_INVALID_OP_I,
+    RK_IMM_U64_I,
+    RK_IMM_I64_I,
     RK_IMM_CHAR_I,
     RK_PRINTNL_I,
     RK_IMM_STRING_I,
@@ -104,7 +117,14 @@ typedef enum RK_OP_Index {
 } RK_OP_Index; /**< Defines zero-based, contiguous indexes for RK_OP.*/
 
 #define RK_TOT_OP RK_TOT_OP_I /**< Defines the total number of defined opcodes.*/
-#define RK_MAX_OPS ((INT64_MAX / RK_WORD_FACTOR) +1) /**< Defines the forced limit on total opcodes, by the max value of int64_t.*/
+
+typedef enum Roko_Mode {
+    RK_7BIT_OPCODES_MODE=0,
+    RK_8BIT_OPCODES_MODE,
+    RK_TOT_OPCODES_MODE,
+} Roko_Mode;
+
+extern const char* RK_Mode_Str[RK_TOT_OPCODES_MODE]; /**< Defines constant strings for Roko_Mode.*/
 
 typedef struct Roko {
     Word memory[RK_MEM_SIZE+1]; /**< Defines VM RAM memory.*/
@@ -116,13 +136,15 @@ typedef struct Roko {
     FILE* out_fd; /**< Defines output file for interactive text.*/
     FILE* coredump_fd; /**< Defines output for core dump.*/
     int verbose_level; /**< Defines current verbose level for tracing.*/
+    Roko_Mode mode; /**< Defines current opcode length mode.*/
 } Roko; /**< Defines VM.*/
 
 extern const char* RK_OP_Str[RK_TOT_OP]; /**< Defines constant strings for RK_OP.*/
 
-void rk_init(Roko* rk, int verbose_level); /**< Initialises the pre-allocated passed Roko pointer.*/
+void rk_init(Roko* rk, Roko_Mode mode, int verbose_level); /**< Initialises the pre-allocated passed Roko pointer.*/
 const char* rk_op_Str(RK_OP op); /**< Returns a pointer to constant string for passed RK_OP.*/
 const char* rk_type_Str(Word_Type t); /**< Returns a pointer to constant string for passed Word_Type.*/
+const char* rk_mode_Str(Roko_Mode t); /**< Returns a pointer to constant string for passed Roko_Mode.*/
 void rk_print_Word_2file(FILE* fp, Word w, int colored, Roko* rk); /**< Tries printing passed Word to passed file pointer.*/
 void rk_print_Word(Word w, int colored, Roko* rk); /**< Tries printing passed Word to passed fp, bool for colored output.*/
 void rk_dump_colored_2file(Roko* rk, FILE* fp, int colored); /**< Dumps Roko state to passed fp, bool for colored output.*/
@@ -131,10 +153,11 @@ int load_sum_prog(Roko* rk); /**< Loads hardcoded instructions for int sum progr
 int load_mul_prog(Roko* rk); /**< Loads hardcoded instructions for int mul program.*/
 int load_max_prog(Roko* rk); /**< Loads hardcoded instructions for max program.*/
 int load_bad_prog(Roko* rk); /**< Loads hardcoded instructions for a non-halting program.*/
-RK_OP rk_op_from_Word(Word w); /**< Returns a RK_OP from the passed Word.*/
-Word rk_operand_from_Word_i64(Word w); /**< Returns an i64 operand from passed Word.*/
-Word rk_operand_from_Word_String(Word w); /**< Returns a String operand from passed Word.*/
-Word rk_operand_from_Word_f64(Word w); /**< Returns an f64 operand from passed Word.*/
+RK_OP rk_op_from_Word(Roko* rk, Word w); /**< Returns a RK_OP from the passed Word.*/
+Word rk_operand_from_Word_u64(Roko* rk, Word w); /**< Returns an u64 operand from passed Word.*/
+Word rk_operand_from_Word_i64(Roko* rk, Word w); /**< Returns an i64 operand from passed Word.*/
+Word rk_operand_from_Word_String(Roko* rk, Word w); /**< Returns a String operand from passed Word.*/
+Word rk_operand_from_Word_f64(Roko* rk, Word w); /**< Returns an f64 operand from passed Word.*/
 int rk_do_op(RK_OP op, Word operand, Roko* rk); /**< Returns 0 if the requested op is successful, other values are errors.*/
 int rk_execute(Roko* rk); /**< Starts execution from current Roko state.*/
 int rk_load_word_from_file(Roko* rk, FILE* fp, int64_t pos); /**< Returns 1 if successful, other values are errors.*/
