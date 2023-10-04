@@ -1178,7 +1178,8 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
             }
             if (rk->reg.data.as_i64 < 0) {
                 //printf("\n\nRegister was negative, setting IC to {%" PRId64 "}.\n", operand);
-                rk->ic = operand.data.as_i64;
+                int64_t offset = operand.data.as_i64;
+                rk->ic = offset;
             } else {
                 rk->ic++;
             }
@@ -1235,6 +1236,9 @@ int rk_execute(Roko* rk) {
         } else if (rk->curr_op == RK_IMM_U64) {
             rk->operand = rk_operand_from_Word_u64(rk,rk->ir);
             rk->operand.type = RK_TYPE_UINT64;
+        } else if (rk->curr_op == RK_JMPNEG_I64){
+            rk->operand = rk_operand_from_Word_u64(rk,rk->ir);
+            rk->operand.type = RK_TYPE_INT64;
         } else {
             rk->operand = rk_operand_from_Word_u64(rk,rk->ir);
             rk->operand.type = RK_TYPE_UINT64;
