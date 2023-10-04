@@ -32,7 +32,7 @@ int main (int argc, char** argv) {
         return 1;
     }
 
-    rk_init(rk,RK_7BIT_OPCODES_MODE,argc);
+    rk_init(rk,RK_8BIT_OPCODES_MODE,3);//argc-1);
 
     int load_res = load_program_from_file(prog_file, rk);
 

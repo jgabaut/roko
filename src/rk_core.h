@@ -49,8 +49,8 @@ typedef struct Word {
 #define RK_MAX_UNSIGNED_7BIT_OPS ((UINT64_MAX / RK_WORD_7BIT_FACTOR)) /**< Defines the forced limit on total unsigned 7bit opcodes, by the max value of int64_t.*/
 #define RK_MAX_SIGNED_7BIT_OPS ((INT64_MAX / RK_WORD_7BIT_FACTOR) +1) /**< Defines the forced limit on total signed 7bit opcodes, by the max value of int64_t.*/
 #define RK_MAX_SIGNED_7BIT_OPS_HEX ((INT64_MAX / RK_WORD_7BIT_FACTOR_HEX) +1) /**< Defines the forced limit on total 7bit opcodes, by the max value of int64_t using the hex factor macro.*/
-#define RK_WORD_8BIT_FACTOR ((UINT64_MAX / 256))  //72057594037927935
-#define RK_WORD_8BIT_FACTOR_HEX 0xffffffffffffff
+#define RK_WORD_8BIT_FACTOR_HEX 0xFFFFFFFFFFFFFFULL
+#define RK_WORD_8BIT_FACTOR RK_WORD_8BIT_FACTOR_HEX //((INT64_MAX / 256))  //72057594037927935
 #define RK_MAX_UNSIGNED_8BIT_OPS ((UINT64_MAX / RK_WORD_8BIT_FACTOR)) /**< Defines the forced limit on total unsigned 8bit opcodes, by the max value of uint64_t.*/
 #define RK_MAX_SIGNED_8BIT_OPS ((INT64_MAX / RK_WORD_8BIT_FACTOR) +1) /**< Defines the forced limit on total signed 8bit opcodes, by the max value of uint64_t.*/
 #define RK_MAX_SIGNED_8BIT_OPS_HEX ((INT64_MAX / RK_WORD_8BIT_FACTOR_HEX) +1) /**< Defines the forced limit on total signed 8bit opcodes, by the max value of uint64_t using the hex factor macro.*/

@@ -484,13 +484,19 @@ RK_OP rk_op_from_Word(Roko* rk, Word w) {
 
     uint64_t factor = -1;
     int64_t data = -1;
+    RK_OP res = -1;
 
     if (rk->mode == RK_7BIT_OPCODES_MODE) {
         factor = RK_WORD_7BIT_FACTOR;
         data = w.data.as_i64;
+        res = data / factor;
     } else if (rk->mode == RK_8BIT_OPCODES_MODE) {
-        factor = RK_WORD_8BIT_FACTOR;
+        //TODO
+        //Is it possible to use the hex factor instead of bit shifting?
+        //factor = RK_WORD_8BIT_FACTOR;
         data = w.data.as_u64;
+        res = data >> 56;
+    } else if (rk->mode == RK_8BIT_OPCODES_MODE) {
     } else {
         assert(0 && "Unreachable.\n");
     }
@@ -513,7 +519,6 @@ RK_OP rk_op_from_Word(Roko* rk, Word w) {
         return RK_PANIC;
     }
 
-    RK_OP res = data / factor;
     return res;
 }
 
@@ -546,7 +551,7 @@ Word rk_operand_from_Word_String(Roko* rk, Word w) {
     } else if (rk->mode == RK_8BIT_OPCODES_MODE) {
         factor = RK_WORD_8BIT_FACTOR;
         data = w.data.as_u64;
-        return (Word){ .type = RK_TYPE_STRING, .data.as_u64 = data % factor };
+        return (Word){ .type = RK_TYPE_STRING, .data.as_u64 = data & RK_WORD_8BIT_FACTOR };
     } else {
         assert(0 && "Unreachable.\n");
     }
@@ -579,8 +584,10 @@ Word rk_operand_from_Word_u64(Roko* rk, Word w) {
 
     if (rk->mode == RK_7BIT_OPCODES_MODE) {
         factor = RK_WORD_7BIT_FACTOR;
+        return (Word){ .type = RK_TYPE_UINT64, .data.as_u64 = ((uint64_t) data) % factor };
     } else if (rk->mode == RK_8BIT_OPCODES_MODE) {
         factor = RK_WORD_8BIT_FACTOR;
+        return (Word){ .type = RK_TYPE_UINT64, .data.as_u64 = ((uint64_t) data) & factor };
     } else {
         assert(0 && "Unreachable.\n");
     }
@@ -788,26 +795,26 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
         }
         break;
         case RK_WRITE_STRING: {
-            if (operand.type != RK_TYPE_INT64) {
-                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_INT64, operand.type);
+            if (operand.type != RK_TYPE_UINT64) {
+                fprintf(stderr,"\n[ERROR] at %s(): operand type error, expected [%i] was [%i].\n",__func__, RK_TYPE_UINT64, operand.type);
                 return 1;
             }
-            if (operand.data.as_i64 > RK_MEM_SIZE-1) {
+            if (operand.data.as_u64 > RK_MEM_SIZE-1) {
                 fprintf(stderr,"\n[ERROR] at %s(): operand > RK_MEM_SIZE-1.\n",__func__);
                 return 1;
             }
-            if (operand.data.as_i64 < 0) {
+            if (operand.data.as_u64 < 0) {
                 fprintf(stderr,"\n\t[ERROR] at %s(): Invalid memory access, operand was negative.\n", __func__);
                 return 1;
             }
             int64_t value = -1;
-            int64_t string_p_addr = operand.data.as_i64;
+            uint64_t string_p_addr = rk_operand_from_Word_u64(rk,operand).data.as_u64;
             if (rk->memory[string_p_addr].type != RK_TYPE_STRING) {
                 fprintf(stderr,"\n[ERROR] at %s(): memory access type error, expected [%i] was [%i].\n",__func__, RK_TYPE_STRING, rk->memory[string_p_addr].type);
                 return 1;
             }
 
-            int64_t offset = rk_operand_from_Word_String(rk,rk->memory[string_p_addr]).data.as_i64;
+            uint64_t offset = rk_operand_from_Word_String(rk,rk->memory[string_p_addr]).data.as_u64;
 
             do {
                 if (rk->memory[offset].type != RK_TYPE_CHAR) {
@@ -815,7 +822,7 @@ int rk_do_op(RK_OP op, Word operand, Roko* rk) {
                     fprintf(stderr,"\n[HINT] op was {%s}, maybe a missing null terminator?\n",rk_op_Str(op));
                     return 1;
                 }
-                value = rk_operand_from_Word_i64(rk,rk->memory[offset]).data.as_i64;
+                value = rk_operand_from_Word_u64(rk,rk->memory[offset]).data.as_u64;
                 if (value >= 32 && value <= 255) {
                     fprintf(stdout, "%c", (char) value);
                 } else if (value == 0) {
@@ -1229,8 +1236,8 @@ int rk_execute(Roko* rk) {
             rk->operand = rk_operand_from_Word_u64(rk,rk->ir);
             rk->operand.type = RK_TYPE_UINT64;
         } else {
-            rk->operand = rk_operand_from_Word_i64(rk,rk->ir);
-            rk->operand.type = RK_TYPE_INT64;
+            rk->operand = rk_operand_from_Word_u64(rk,rk->ir);
+            rk->operand.type = RK_TYPE_UINT64;
         }
         op_res = rk_do_op(rk->curr_op, rk->operand, rk);
 
