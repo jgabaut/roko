@@ -108,5 +108,5 @@
 
   - `darwin-arm64`
 
-  📦 v0.1.0 02/10/2023
+  📦 v0.1.1 29/10/2023
   https://github.com/jgabaut/roko/releases
