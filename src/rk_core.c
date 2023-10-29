@@ -48,7 +48,7 @@ const char* RK_OP_Str[RK_TOT_OP] = {
 };
 
 const char* RK_Word_Type_Str[RK_TOT_TYPES] = {
-    "null",
+    "Null",
     "U64",
     "I64",
     "F64",
@@ -1343,7 +1343,7 @@ int rk_load_word_from_file(Roko* rk, FILE* fp, int64_t pos) {
     } else {
         if (rk->verbose_level > 2) {
             fprintf(stderr,"\n\t[WARN] at %s(): rk->memory[%" PRId64 "].type was [%i].", __func__, pos, rk->memory[pos].type);
-            fprintf(stderr,"\n\t[WARN] casting rk->memory[%" PRId64 "].type {%i} to [%i].\n", pos, rk->memory[pos].type, RK_TYPE_UINT64);
+            fprintf(stderr,"\n\t[WARN] casting rk->memory[%" PRId64 "].type {%s} to [%s].\n", pos, rk_type_Str(rk->memory[pos].type), rk_type_Str(RK_TYPE_UINT64));
         }
         rk->memory[pos].type = RK_TYPE_UINT64;
     }

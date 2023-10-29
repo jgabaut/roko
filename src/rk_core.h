@@ -14,7 +14,7 @@
 
 
 static const int ROKO_API_VERSION_INT = (ROKO_MAJOR*1000000+ROKO_MINOR*10000+ROKO_PATCH*100); /**< Represents current version with numeric format.*/
-static const char ROKO_API_VERSION_STRING[] = "0.1.1-dev"; /**< Represents current version with MAJOR.MINOR.PATCH format.*/
+static const char ROKO_API_VERSION_STRING[] = "0.1.1"; /**< Represents current version with MAJOR.MINOR.PATCH format.*/
 
 const char* string_roko_version(void);
 const int int_roko_version(void);
