@@ -1307,6 +1307,67 @@ int rk_execute(Roko* rk) {
     return op_res;
 }
 
+/**
+ * Reads one Word from passed file and prints it as OP operand.
+ * @param rk The Roko to read current opcode mode.
+ * @param fp The file pointer to read from.
+ */
+int rk_print_word_from_file(Roko* rk, FILE* fp) {
+    int res = -1;
+    if (!rk) {
+        fprintf(stderr,"\n[ERROR] at %s(): rk was NULL.\n",__func__);
+        return res;
+    }
+    if (!fp) {
+        fprintf(stderr,"\n[ERROR] at %s(): fp was NULL.\n",__func__);
+        return res;
+    }
+    int64_t int_read = -1;
+    uint64_t uint_read = 0;
+    RK_OP read_op = -1;
+    Word read_operand = {0};
+
+    if (rk->mode == RK_7BIT_OPCODES_MODE) {
+        res = fscanf(fp,"%" SCNd64 , &int_read);
+        Word w_i64 = (Word) {
+           .data.as_i64 = int_read,
+        };
+        read_op = rk_op_from_Word(rk,w_i64);
+        read_operand = rk_operand_from_Word_i64(rk,w_i64);
+    } else if (rk->mode == RK_8BIT_OPCODES_MODE) {
+        res = fscanf(fp,"%" SCNx64 , &uint_read);
+        Word w_u64 = (Word) {
+           .data.as_u64 = uint_read,
+        };
+        read_op = rk_op_from_Word(rk,w_u64);
+        read_operand = rk_operand_from_Word_u64(rk,w_u64);
+    } else {
+        assert(0 && "Unreachable.\n");
+    }
+
+    if (rk->mode == RK_7BIT_OPCODES_MODE) {
+        if (read_op == RK_IMM_CHAR) {
+            printf("%s %c\n", rk_op_Str(read_op), (char)read_operand.data.as_i64);
+        } else {
+            printf("%s %" PRId64 "\n", rk_op_Str(read_op), read_operand.data.as_i64);
+        }
+    } else if (rk->mode == RK_8BIT_OPCODES_MODE) {
+        if (read_op == RK_IMM_CHAR) {
+            printf("%s %c\n", rk_op_Str(read_op), (char)read_operand.data.as_u64);
+        } else {
+            printf("%s %" PRId64 "\n", rk_op_Str(read_op), read_operand.data.as_u64);
+        }
+    } else {
+        assert(0 && "Unreachable.\n");
+    }
+
+    if (res != 1) {
+        fprintf(stderr,"\n\t[ERROR] at %s(): Failed to read word from fp.\n", __func__);
+        return res;
+    }
+    return res;
+}
+
 int rk_load_word_from_file(Roko* rk, FILE* fp, int64_t pos) {
     int res = -1;
     if (!rk) {

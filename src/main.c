@@ -34,16 +34,25 @@ int main (int argc, char** argv) {
 
     rk_init(rk,RK_8BIT_OPCODES_MODE,argc-1);
 
-    int load_res = load_program_from_file(prog_file, rk);
+    int is_exec = 1;
+    int res = -1;
 
-    if (load_res != 1) {
-        fprintf(stderr,"\n\t[ERROR] at %s(): load_program_from_file returned [%i].\n", __func__, load_res);
-        rk_dump(rk);
-        free(rk);
-        return 1;
+    if (is_exec) {
+        int load_res = load_program_from_file(prog_file, rk);
+
+        if (load_res != 1) {
+            fprintf(stderr,"\n\t[ERROR] at %s(): load_program_from_file returned [%i].\n", __func__, load_res);
+            rk_dump(rk);
+            free(rk);
+            return 1;
+        }
+
+        res = rk_execute(rk);
+    } else {
+        do {
+            res = rk_print_word_from_file(rk,prog_file);
+        } while (res == 1);
     }
-
-    int res = rk_execute(rk);
 
     /*
     printf("\nQuitting.\033[1;39m\n");

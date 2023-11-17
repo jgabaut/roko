@@ -1,9 +1,13 @@
-[Build info]
-main.c# source file name
-roko# executable file name
-0.1.0# first version with make support
-kazoj# tests folder name
-0.1.0# autoconf and automake support version
-[Supported versions]
+[build]
+source = main.c# source file name
+bin = roko# executable file name
+make-vers = 0.1.0# first version with make support
+tests = kazoj# tests folder name
+automake-vers = 0.1.0# autoconf and automake support version
+[tests]
+tests-dir = bone
+errortests-dir = kulpo
+[versions]
 0.1.0# First release
 0.1.1#
+0.1.2-dev#

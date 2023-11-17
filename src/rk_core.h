@@ -10,11 +10,11 @@
 
 #define ROKO_MAJOR 0 /**< Represents current major release.*/
 #define ROKO_MINOR 1 /**< Represents current minor release.*/
-#define ROKO_PATCH 1 /**< Represents current patch release.*/
+#define ROKO_PATCH 2 /**< Represents current patch release.*/
 
 
 static const int ROKO_API_VERSION_INT = (ROKO_MAJOR*1000000+ROKO_MINOR*10000+ROKO_PATCH*100); /**< Represents current version with numeric format.*/
-static const char ROKO_API_VERSION_STRING[] = "0.1.1"; /**< Represents current version with MAJOR.MINOR.PATCH format.*/
+static const char ROKO_API_VERSION_STRING[] = "0.1.2-dev"; /**< Represents current version with MAJOR.MINOR.PATCH format.*/
 
 const char* string_roko_version(void);
 const int int_roko_version(void);
@@ -160,6 +160,7 @@ Word rk_operand_from_Word_String(Roko* rk, Word w); /**< Returns a String operan
 Word rk_operand_from_Word_f64(Roko* rk, Word w); /**< Returns an f64 operand from passed Word.*/
 int rk_do_op(RK_OP op, Word operand, Roko* rk); /**< Returns 0 if the requested op is successful, other values are errors.*/
 int rk_execute(Roko* rk); /**< Starts execution from current Roko state.*/
+int rk_print_word_from_file(Roko* rk, FILE* fp); /**< Returns 1 if successfule, other values are errors.*/
 int rk_load_word_from_file(Roko* rk, FILE* fp, int64_t pos); /**< Returns 1 if successful, other values are errors.*/
 int load_program_from_file(FILE* fp, Roko* rk); /**< Returns 1 if successful, other values are errors.*/
 
